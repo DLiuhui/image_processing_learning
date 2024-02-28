@@ -1,0 +1,107 @@
+import cv2
+import argparse
+import os
+import math
+import numpy as np
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--image', type=str, default='./datas/timg.jpg', help='')
+    parser.add_argument('--out-path', type=str, default='./datas', help='')
+    parser.add_argument('--bbox', type=str, default='110,60,400,290', help='')
+    parser.add_argument('--rotate-angle', type=float, default=10, help='')
+    parser.add_argument('--out-wh', type=str, default='250,270', help='')
+    parser.add_argument('--shear-factor', type=float, default=0.1, help='')
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    img = cv2.imread(args.image, 1)
+    img_h, img_w = img.shape[:2]
+
+    # cv2.imshow('original image', img)
+    # cv2.waitKey(0)
+    
+    # [左上角x, 左上角y, 裁切宽w, 裁切长h]
+    bbox = [int(e) for e in args.bbox.split(',')]
+    out_wh = [int(e) for e in args.out_wh.split(',')]
+
+    # crop matrix, mapping the center of bbox to the center of croped image
+    crop_mat = np.zeros((3, 3), np.float32)
+    crop_mat[0][0] = 1
+    crop_mat[1][1] = 1
+    crop_mat[2][2] = 1
+
+    crop_mat[0][2] = -bbox[0]
+    crop_mat[1][2] = -bbox[1]
+
+    crop_out = img[bbox[1]:bbox[1] + bbox[3], bbox[0]:bbox[0] + bbox[2]]
+    cv2.imwrite(os.path.join(args.out_path, "cropped.png"), crop_out)
+
+    # scale matrix
+    scale_mat = np.zeros((3, 3), np.float32)
+    scale_mat[2][2] = 1
+
+    scale_x = float(out_wh[0]) / bbox[2]
+    scale_y = float(out_wh[1]) / bbox[3]
+
+    scale_mat[0][0] = scale_x
+    scale_mat[1][1] = scale_y
+
+    # shift matrix 
+    shift_mat1 = np.zeros((3, 3), np.float32)
+    shift_mat1[0][0] = 1
+    shift_mat1[1][1] = 1
+    shift_mat1[2][2] = 1
+
+    shift_mat1[0][2] = -(out_wh[0] / 2)
+    shift_mat1[1][2] = -(out_wh[1] / 2)
+
+    # rotate matrix
+    rotate_mat = np.zeros((3, 3), np.float32)
+    rotate_mat[0][0] = 1
+    rotate_mat[1][1] = 1
+    rotate_mat[2][2] = 1
+
+    angle = args.rotate_angle / 180.0 * 3.14159265358979323846
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+
+    rotate_mat[0][0] = cos_a
+    rotate_mat[0][1] = sin_a
+    rotate_mat[1][0] = -sin_a
+    rotate_mat[1][1] = cos_a
+
+    # shear matrix
+    shear_mat = np.zeros((3, 3), np.float32)
+    shear_mat[0][0] = 1
+    shear_mat[1][1] = 1
+    shear_mat[2][2] = 1
+
+    shear_x = args.shear_factor
+
+    shear_mat[0][1] = shear_x
+    shear_mat[1][0] = shear_x
+
+    # shift matrix 
+    shift_mat2 = np.zeros((2, 3), np.float32)
+    shift_mat2[0][0] = 1
+    shift_mat2[1][1] = 1
+
+    shift_mat2[0][2] = out_wh[0] / 2
+    shift_mat2[1][2] = out_wh[1] / 2
+
+    tran_mat = cv2.gemm(shift_mat2, shear_mat, 1, None, 0) 
+    tran_mat = cv2.gemm(tran_mat, rotate_mat, 1, None, 0) 
+    tran_mat = cv2.gemm(tran_mat, shift_mat1, 1, None, 0)
+    tran_mat = cv2.gemm(tran_mat, scale_mat, 1, None, 0) 
+    tran_mat = cv2.gemm(tran_mat, crop_mat, 1, None, 0) 
+
+    out = cv2.warpAffine(img, tran_mat, (img_w, img_h))
+
+    # cv2.imshow('original image', img)
+    # cv2.waitKey(0)
+    # cv2.imshow('cropped image', out)
+    # cv2.waitKey(0)
+    cv2.imwrite(os.path.join(args.out_path, "final.png"), out)
