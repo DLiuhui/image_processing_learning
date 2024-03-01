@@ -33,6 +33,7 @@ if __name__ == '__main__':
     crop_out = img[crop_param[1]:crop_param[1] + crop_param[3], crop_param[0]:crop_param[0] + crop_param[2]]
     cv2.imwrite(os.path.join(args.out_path, "cropped.png"), crop_out)
 
+    # crop本质上是先执行平移, 将左上角点变为crop的左上角点, 然后再保留crop-w/crop-h部分
     out_img = cv2.warpAffine(img, crop_mat, (crop_param[3], crop_param[2]))
     cv2.imwrite(os.path.join(args.out_path, "affine_cropped.png"), out_img)
 
@@ -46,34 +47,19 @@ if __name__ == '__main__':
          [1.0, scale_y, 0]], np.float32)
 
     resize_out = cv2.resize(crop_out, (out_wh[0], out_wh[1]), cv2.INTER_LINEAR)
-    cv2.imwrite(os.path.join(args.out_path, "resized.png"), crop_out)
+    cv2.imwrite(os.path.join(args.out_path, "resized.png"), resize_out)
 
-    out_img = cv2.warpAffine(img, crop_mat, (crop_param[3], crop_param[2]))
-    cv2.imwrite(os.path.join(args.out_path, "affine_cropped.png"), out_img)
-
-    # shift matrix 
-    shift_mat1 = np.zeros((3, 3), np.float32)
-    shift_mat1[0][0] = 1
-    shift_mat1[1][1] = 1
-    shift_mat1[2][2] = 1
-
-    shift_mat1[0][2] = -(out_wh[0] / 2)
-    shift_mat1[1][2] = -(out_wh[1] / 2)
+    out_img = cv2.warpAffine(crop_out, scale_mat, (out_wh[0], out_wh[1]))
+    cv2.imwrite(os.path.join(args.out_path, "affine_resized.png"), out_img)
 
     # rotate matrix
-    rotate_mat = np.zeros((3, 3), np.float32)
-    rotate_mat[0][0] = 1
-    rotate_mat[1][1] = 1
-    rotate_mat[2][2] = 1
-
-    angle = args.rotate_angle / 180.0 * 3.14159265358979323846
+    angle = args.rotate_angle / 180.0 * np.pi
     cos_a = math.cos(angle)
     sin_a = math.sin(angle)
 
-    rotate_mat[0][0] = cos_a
-    rotate_mat[0][1] = sin_a
-    rotate_mat[1][0] = -sin_a
-    rotate_mat[1][1] = cos_a
+    rotate_mat = np.array(
+        [[cos_a, sin_a, 0],
+         [-sin_a, cos_a, 0]], np.float32)
 
     # shear matrix
     shear_mat = np.zeros((3, 3), np.float32)
@@ -86,24 +72,24 @@ if __name__ == '__main__':
     shear_mat[0][1] = shear_x
     shear_mat[1][0] = shear_x
 
-    # shift matrix 
-    shift_mat2 = np.zeros((2, 3), np.float32)
-    shift_mat2[0][0] = 1
-    shift_mat2[1][1] = 1
+    # # shift matrix 
+    # shift_mat2 = np.zeros((2, 3), np.float32)
+    # shift_mat2[0][0] = 1
+    # shift_mat2[1][1] = 1
 
-    shift_mat2[0][2] = out_wh[0] / 2
-    shift_mat2[1][2] = out_wh[1] / 2
+    # shift_mat2[0][2] = out_wh[0] / 2
+    # shift_mat2[1][2] = out_wh[1] / 2
 
-    tran_mat = cv2.gemm(shift_mat2, shear_mat, 1, None, 0) 
-    tran_mat = cv2.gemm(tran_mat, rotate_mat, 1, None, 0) 
-    tran_mat = cv2.gemm(tran_mat, shift_mat1, 1, None, 0)
-    tran_mat = cv2.gemm(tran_mat, scale_mat, 1, None, 0) 
-    tran_mat = cv2.gemm(tran_mat, crop_mat, 1, None, 0) 
+    # tran_mat = cv2.gemm(shift_mat2, shear_mat, 1, None, 0) 
+    # tran_mat = cv2.gemm(tran_mat, rotate_mat, 1, None, 0) 
+    # tran_mat = cv2.gemm(tran_mat, shift_mat1, 1, None, 0)
+    # tran_mat = cv2.gemm(tran_mat, scale_mat, 1, None, 0) 
+    # tran_mat = cv2.gemm(tran_mat, crop_mat, 1, None, 0) 
 
-    out = cv2.warpAffine(img, tran_mat, (img_w, img_h))
+    # out = cv2.warpAffine(img, tran_mat, (img_w, img_h))
 
     # cv2.imshow('original image', img)
     # cv2.waitKey(0)
     # cv2.imshow('cropped image', out)
     # cv2.waitKey(0)
-    cv2.imwrite(os.path.join(args.out_path, "final.png"), out)
+    # cv2.imwrite(os.path.join(args.out_path, "final.png"), out)
