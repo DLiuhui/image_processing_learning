@@ -76,6 +76,28 @@ if __name__ == '__main__':
     out_img = cv2.warpAffine(out_img, shear_mat[:2,:], (out_wh[0], out_wh[1]))
     cv2.imwrite(os.path.join(args.out_path, "affine_shear.png"), out_img)
 
+    # 翻转
+    mirror_mat = np.array(
+        [[1.0, 0.0, 0.0],
+         [0.0, -1.0, 630],
+         [0.0, 0.0, 1.0]], np.float32)
+    out_img = cv2.warpAffine(img, mirror_mat[:2,:], (img.shape[1], img.shape[0]))
+    cv2.imwrite(os.path.join(args.out_path, "affine_mirror_y.png"), out_img)
+
+    mirror_mat = np.array(
+        [[-1.0, 0.0, 1200],
+         [0.0, 1.0, 0.0],
+         [0.0, 0.0, 1.0]], np.float32)
+    out_img = cv2.warpAffine(img, mirror_mat[:2,:], (img.shape[1], img.shape[0]))
+    cv2.imwrite(os.path.join(args.out_path, "affine_mirror_x.png"), out_img)
+
+    mirror_mat = np.array(
+        [[-1.0, 0.0, 1200],
+         [0.0, -1.0, 630],
+         [0.0, 0.0, 1.0]], np.float32)
+    out_img = cv2.warpAffine(img, mirror_mat[:2,:], (img.shape[1], img.shape[0]))
+    cv2.imwrite(os.path.join(args.out_path, "affine_mirror.png"), out_img)
+
     # # shift matrix 
     # shift_mat2 = np.zeros((2, 3), np.float32)
     # shift_mat2[0][0] = 1
@@ -100,3 +122,13 @@ if __name__ == '__main__':
 
     tran_img_origin = cv2.warpAffine(img, tran_mat[:2,:], (img.shape[1], img.shape[0]))
     cv2.imwrite(os.path.join(args.out_path, "affine_final_origin.png"), tran_img_origin)
+
+    # 先旋转再平移
+    tran_mat = cv2.gemm(crop_mat, rotate_mat, 1, None, 0)
+    tran_img = cv2.warpAffine(img, tran_mat[:2,:], (img.shape[1], img.shape[0]))
+    cv2.imwrite(os.path.join(args.out_path, "tmp_cr.png"), tran_img)
+
+    # 先平移再旋转
+    tran_mat = cv2.gemm(rotate_mat, crop_mat, 1, None, 0)
+    tran_img = cv2.warpAffine(img, tran_mat[:2,:], (img.shape[1], img.shape[0]))
+    cv2.imwrite(os.path.join(args.out_path, "tmp_rc.png"), tran_img)
